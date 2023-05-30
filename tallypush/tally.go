@@ -23,6 +23,7 @@
 package tallypush // import "go.uber.org/net/metrics/tallypush"
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/uber-go/tally"
@@ -97,6 +98,7 @@ type histogram struct {
 }
 
 func (th *histogram) Set(bucket int64, total int64) {
+	fmt.Println("LABEL: ", bucket)
 	delta := total - th.lasts[bucket]
 	th.lasts[bucket] = total
 
