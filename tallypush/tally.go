@@ -23,7 +23,6 @@
 package tallypush // import "go.uber.org/net/metrics/tallypush"
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/uber-go/tally"
@@ -60,12 +59,14 @@ func (tp *target) NewHistogram(spec push.HistogramSpec) push.Histogram {
 			buckets[i] = float64(spec.Buckets[i])
 		}
 	}
+	tallyBuck := tally.ValueBuckets(buckets)
 	return &histogram{
 		Histogram: tp.Tagged(spec.Tags).Histogram(
 			spec.Name,
-			tally.ValueBuckets(buckets),
+			tallyBuck,
 		),
-		lasts: make(map[int64]int64, len(spec.Buckets)),
+		buckets: tallyBuck,
+		lasts:   make([]int64, len(spec.Buckets)),
 	}
 }
 
@@ -94,15 +95,16 @@ type histogram struct {
 
 	// lasts keep the last value pushed to tally per histogram bucket.  This
 	// defaults to zero.
-	lasts map[int64]int64
+	//lasts map[int64]int64
+	buckets tally.ValueBuckets
+	lasts   []int64
 }
 
-func (th *histogram) Set(bucket int64, total int64) {
-	fmt.Println("LABEL: ", bucket)
-	delta := total - th.lasts[bucket]
-	th.lasts[bucket] = total
+func (th *histogram) Set(bucketIndex int64, total int64) {
+	delta := total - th.lasts[bucketIndex]
+	th.lasts[bucketIndex] = total
 
 	for i := int64(0); i < delta; i++ {
-		th.RecordValue(float64(bucket))
+		th.RecordValue(th.buckets[bucketIndex])
 	}
 }

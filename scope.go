@@ -20,8 +20,6 @@
 
 package metrics
 
-import "fmt"
-
 // A Scope is a collection of tagged metrics.
 type Scope struct {
 	core      *core
@@ -94,7 +92,6 @@ func (s *Scope) Gauge(spec Spec) (*Gauge, error) {
 
 // Histogram constructs a new Histogram.
 func (s *Scope) Histogram(spec HistogramSpec) (*Histogram, error) {
-	fmt.Println("LABEL: new histogram")
 	if s == nil {
 		return nil, nil
 	}

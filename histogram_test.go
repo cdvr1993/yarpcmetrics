@@ -28,6 +28,9 @@ import (
 	promproto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/uber-go/tally"
+	"go.uber.org/net/metrics/push"
+	"go.uber.org/net/metrics/tallypush"
 )
 
 func uint64ptr(i uint64) *uint64 {
@@ -260,4 +263,46 @@ func TestHistogramVectorIndependence(t *testing.T) {
 		Unit:   time.Millisecond,
 		Values: []int64{1000},
 	}, snap.Histograms[1], "Unexpected second histogram snapshot.")
+}
+
+func BenchmarkHistogram(b *testing.B) {
+	root, _ := tally.NewRootScope(tally.ScopeOptions{}, time.Hour)
+	target := tallypush.New(root)
+	h := target.NewHistogram(push.HistogramSpec{
+		Buckets: []int64{
+			1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+			12, 14, 16, 18, 20,
+			25, 30, 35, 40, 45, 50,
+			60, 70, 80, 90, 100,
+			120, 140, 160, 180, 200,
+			250, 300, 350, 400, 450, 500,
+			600, 700, 800, 900, 1000,
+			1500, 2000, 2500, 3000,
+			4000, 5000, 7500, 10000,
+		},
+	})
+	//h := target.NewHistogram(HistogramSpec{
+	//	Spec: Spec{
+	//		Name: "success_latency_ms",
+	//		Help: "Latency distribution of successful RPCs.",
+	//	},
+	//	Unit: time.Millisecond,
+	//	Buckets: []int64{
+	//		1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+	//		12, 14, 16, 18, 20,
+	//		25, 30, 35, 40, 45, 50,
+	//		60, 70, 80, 90, 100,
+	//		120, 140, 160, 180, 200,
+	//		250, 300, 350, 400, 450, 500,
+	//		600, 700, 800, 900, 1000,
+	//		1500, 2000, 2500, 3000,
+	//		4000, 5000, 7500, 10000,
+	//	},
+	//})
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		h.Set(0, 1)
+		//h.Observe(time.Millisecond)
+	}
 }
