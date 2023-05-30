@@ -190,6 +190,7 @@ func (h *Histogram) push(target push.Target) {
 		})
 	}
 	for i, bucket := range h.buckets {
+		fmt.Println("LABEL 2:", i, len(h.buckets))
 		h.pusher.Set(int64(i), bucket.Load())
 	}
 }
