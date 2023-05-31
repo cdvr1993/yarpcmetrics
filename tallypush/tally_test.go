@@ -71,8 +71,9 @@ func TestHistogram(t *testing.T) {
 		Spec:    push.Spec{Name: "test_histogram", Tags: metrics.Tags{"foo": "bar"}},
 		Buckets: []int64{5, 10, math.MaxInt64},
 	})
-	h.Set(5, 1)
-	h.Set(5, 2) // should overwrite previous value
+	// use index, not value
+	h.Set(0, 1)
+	h.Set(0, 2) // should overwrite previous value
 	histograms := scope.Snapshot().Histograms()
 	require.Equal(t, 1, len(histograms), "Unexpected number of histograms.")
 	assert.Equal(
