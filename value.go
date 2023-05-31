@@ -67,8 +67,9 @@ type vector struct {
 	// and the variable tag keys and values.
 	factory func(metadata, []string) metric
 
-	metricsMu sync.RWMutex
-	metrics   map[string]metric // key is variable tag vals
+	metricsMu         sync.RWMutex
+	metrics           map[string]int // key is variable tag vals
+	quickAccessMetric []metric
 }
 
 func (vec *vector) getOrCreate(variableTagPairs []string) (metric, error) {
@@ -81,7 +82,8 @@ func (vec *vector) getOrCreate(variableTagPairs []string) (metric, error) {
 	}
 
 	vec.metricsMu.RLock()
-	m, ok := vec.metrics[string(digester.digest())]
+	index, ok := vec.metrics[string(digester.digest())]
+	m := vec.quickAccessMetric[index]
 	vec.metricsMu.RUnlock()
 	if ok {
 		digester.free()
@@ -89,20 +91,24 @@ func (vec *vector) getOrCreate(variableTagPairs []string) (metric, error) {
 	}
 
 	vec.metricsMu.Lock()
-	m, err := vec.newValue(digester.digest(), variableTagPairs)
+	index, err := vec.newValue(digester.digest(), variableTagPairs)
+	m = vec.quickAccessMetric[index]
 	vec.metricsMu.Unlock()
 	digester.free()
 
 	return m, err
 }
 
-func (vec *vector) newValue(key []byte, variableTagPairs []string) (metric, error) {
+func (vec *vector) newValue(key []byte, variableTagPairs []string) (int, error) {
 	m, ok := vec.metrics[string(key)]
 	if ok {
 		return m, nil
 	}
-	m = vec.factory(vec.meta, variableTagPairs)
+
+	m = len(vec.quickAccessMetric)
 	vec.metrics[string(key)] = m
+	vec.quickAccessMetric = append(vec.quickAccessMetric, vec.factory(vec.meta, variableTagPairs))
+
 	return m, nil
 }
 
@@ -110,7 +116,7 @@ func (vec *vector) snapshot() []Snapshot {
 	vec.metricsMu.RLock()
 	defer vec.metricsMu.RUnlock()
 	snaps := make([]Snapshot, 0, len(vec.metrics))
-	for _, m := range vec.metrics {
+	for _, m := range vec.quickAccessMetric {
 		switch v := m.(type) {
 		case *Counter:
 			snaps = append(snaps, v.snapshot())
@@ -123,7 +129,7 @@ func (vec *vector) snapshot() []Snapshot {
 
 func (vec *vector) push(target push.Target) {
 	vec.metricsMu.RLock()
-	for _, m := range vec.metrics {
+	for _, m := range vec.quickAccessMetric {
 		m.push(target)
 	}
 	vec.metricsMu.RUnlock()
